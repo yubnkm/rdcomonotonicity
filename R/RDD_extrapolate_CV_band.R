@@ -226,12 +226,13 @@ RDD_extrapolate_CV_band <- function(
     inds_X1 <- X1_map$inds
     X0_map <- unique_rows_with_map(X0)
     X0_unique <- X0_map$unique
-    inds_X0 <- X0_maps$inds
+    inds_X0 <- X0_map$inds
 
-    y0_imputed_unique <- g0_imputed_func(y0_imputed_unique[inds_X1])
-    y1_imputed_unique <- g1_imputed_func(y1_imputed_unique[inds_X0])
-    y1_imputed <- as.numeric(y0_imputed_unique)[inds_X1]
-    y0_imputed <- as.numeric(y1_imputed_unique)[inds_X0]
+    y0_imputed_unique <- g0_imputed_func(X1_unique)
+    y1_imputed_unique <- g1_imputed_func(X0_unique)
+    
+    y0_imputed <- as.numeric(y0_imputed_unique)[inds_X1]
+    y1_imputed <- as.numeric(y1_imputed_unique)[inds_X0]
 
     y0[D == 1] <- y0_imputed
     y1[D == 0] <- y1_imputed

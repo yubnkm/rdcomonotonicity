@@ -38,12 +38,12 @@ simul_dgp <- function(n=500, noise_sd = 0.02) {
 
 dat <- simul_dgp(n = 500, noise_sd = 0.02)
 
-result <- RDD_extrapolate_CV5(
+result <- RDD_extrapolate_CV_band(
   Y = dat$Y,
   X = dat$X,
   D = dat$D,
   kernel = "gaussian",
-  bands = 0.2,
+  bands = seq(0.2,0.6, length.out = 5),
   num_folds = 5,
   order = 1
 )
