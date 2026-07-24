@@ -36,14 +36,78 @@ simul_dgp <- function(n=500, noise_sd = 0.02) {
     )
 }
 
-dat <- simul_dgp(n = 500, noise_sd = 0.02)
+dat <- simul_dgp(n = 1000, noise_sd = 0.02)
 
-result <- RDD_extrapolate_CV5(
+## 
+# Y <- dat$Y
+# X <- dat$X
+# D <- dat$D
+# weights <- rep(1, length(Y))
+# kernel <- "gaussian"
+# bands <- seq(0.2, 0.6, length.out = 5)
+# num_folds <- 5
+# order <- 1
+# batch_size <- 1000L
+
+## batch function test
+# set.seed(123)
+# result_large_batch <- RDD_extrapolate_CV_band(
+#   Y = dat$Y,
+#   X = dat$X,
+#   D = dat$D,
+#   kernel = "gaussian",
+#   bands = seq(0.2,0.6, length.out = 5),
+#   num_folds = 5,
+#   order = 1,
+#   batch_size = 1000000000L
+# )
+# set.seed(123)
+
+# result_small_batch <- RDD_extrapolate_CV_band(
+#   Y = dat$Y,
+#   X = dat$X,
+#   D = dat$D,
+#   kernel = "gaussian",
+#   bands = seq(0.2,0.6, length.out = 5),
+#   num_folds = 5,
+#   order = 1,
+#     batch_size = 25L
+# )
+# all.equal(
+#     result_large_batch$y0,
+#     result_small_batch$y0,
+#     tolerance = 1e-12
+# )
+
+# all.equal(
+#     result_large_batch$y1,
+#     result_small_batch$y1,
+#     tolerance = 1e-12
+# )
+
+# all.equal(
+#     result_large_batch$S,
+#     result_small_batch$S
+# )
+
+# all.equal(
+#     result_large_batch$plotting0,
+#     result_small_batch$plotting0,
+#     tolerance = 1e-12
+# )
+
+# all.equal(
+#     result_large_batch$plotting1,
+#     result_small_batch$plotting1,
+#     tolerance = 1e-12
+# )
+
+result <- RDD_extrapolate_CV_band(
   Y = dat$Y,
   X = dat$X,
   D = dat$D,
   kernel = "gaussian",
-  bands = 0.2,
+  bands = seq(0.2,0.6, length.out = 5),
   num_folds = 5,
   order = 1
 )
@@ -102,9 +166,9 @@ fig9 <- ggplot() +
         data = plotting1,
         aes(x = g1_tilde, y = Y0),
         shape = 4,
-        size = 3,
-        stroke = 1.1,
-        color = "black"
+        size = 1.8,
+        stroke = 1,
+        color = "#828181"
     ) +
     scale_linetype_manual(
         name = NULL,
