@@ -6,7 +6,8 @@ RDD_extrapolate_CV_band <- function(
     bands = seq(0.01, 1, length.out = 100),
     weights = rep(1, length(Y)),
     num_folds = 5,
-    order = 1
+    order = 1,
+    batch_size = 1000L
 ) {
 
     Y <- as.numeric(Y)
@@ -106,7 +107,6 @@ RDD_extrapolate_CV_band <- function(
     nnind1 <- as.integer(nn1$nn.index[, 1L])  # NN(X1) indices (in X0) 
     W1 <- distance1 < quart * band0
     # g0 <- g0_raw(X1, X0[nnind1, , drop = FALSE])  
-
     # Speed things up if there are repeated X values
     X1_sub <- X1[W1, , drop = FALSE]
     nnind1_sub <- nnind1[W1]
@@ -117,7 +117,15 @@ RDD_extrapolate_CV_band <- function(
     inds1_sub <- X1_sub_map$inds
     nnind1_sub_unique <- nnind1_sub[locs1_sub]
 
-    g0_unique <- g0_raw(X1_sub_unique, X0[nnind1_sub_unique, , drop = FALSE])
+    # g0_unique <- g0_raw(X1_sub_unique, X0[nnind1_sub_unique, , drop = FALSE])
+    # quick fix to avoid memory problems, do things in batches:
+    g0_unique <- predict_in_batches(
+        FUN = g0_raw, 
+        x_fit = X1_sub_unique,
+        x_center = X0[nnind1_sub_unique, , drop = FALSE],
+        batch_size = batch_size
+        )
+    
     g0 <- g0_unique[inds1_sub]
 
     y1_max <- max(g0)
@@ -149,7 +157,6 @@ RDD_extrapolate_CV_band <- function(
     nnind0 <- as.integer(nn0$nn.index[, 1L])
     W0 <- distance0 < quart * band1
     # g1 <- g1_raw(X0, X1[nnind0, , drop = FALSE])
-
     # Speed things up if there are repeated X values
     X0_sub <- X0[W0, , drop = FALSE]
     nnind0_sub <- nnind0[W0]
@@ -160,7 +167,14 @@ RDD_extrapolate_CV_band <- function(
     inds0_sub <- X0_sub_map$inds
     nnind0_sub_unique <- nnind0_sub[locs0_sub]
 
-    g1_unique <- g1_raw(X0_sub_unique, X1[nnind0_sub_unique, , drop = FALSE])
+    # g1_unique <- g1_raw(X0_sub_unique, X1[nnind0_sub_unique, , drop = FALSE])
+    # quick fix to avoid memory problems, do things in batches:
+    g1_unique <- predict_in_batches(
+        FUN = g1_raw, 
+        x_fit = X0_sub_unique,
+        x_center = X1[nnind0_sub_unique, , drop = FALSE],
+        batch_size = batch_size
+        )
     g1 <- g1_unique[inds0_sub]
 
     y0_max <- max(g1)
@@ -202,9 +216,19 @@ RDD_extrapolate_CV_band <- function(
     X_unique <- X_map$unique
     inds_X <- X_map$inds
 
-    y0_unique <- g0_func(X_unique)
-    y1_unique <- g1_func(X_unique)
-
+    # y0_unique <- g0_func(X_unique)
+    # y1_unique <- g1_func(X_unique)
+    # quick fix to avoid memory problems, do things in batches:
+    y0_unique <- predict_in_batches(
+        FUN = g0_func,
+        x_fit = X_unique,
+        batch_size = batch_size
+    )
+    y1_unique <- predict_in_batches(
+        FUN = g1_func,
+        x_fit = X_unique,
+        batch_size = batch_size
+    )
     y0 <- as.numeric(y0_unique)[inds_X]
     y1 <- as.numeric(y1_unique)[inds_X]
     
@@ -228,8 +252,19 @@ RDD_extrapolate_CV_band <- function(
     X0_unique <- X0_map$unique
     inds_X0 <- X0_map$inds
 
-    y0_imputed_unique <- g0_imputed_func(X1_unique)
-    y1_imputed_unique <- g1_imputed_func(X0_unique)
+    # y0_imputed_unique <- g0_imputed_func(X1_unique)
+    # y1_imputed_unique <- g1_imputed_func(X0_unique)
+    # quick fix to avoid memory problems, do things in batches:
+    y0_imputed_unique <- predict_in_batches(
+        FUN = g0_imputed_func,
+        x_fit = X1_unique,
+        batch_size = batch_size
+    )
+    y1_imputed_unique <- predict_in_batches(
+        FUN = g1_imputed_func,
+        x_fit = X0_unique,
+        batch_size = batch_size
+    )
     
     y0_imputed <- as.numeric(y0_imputed_unique)[inds_X1]
     y1_imputed <- as.numeric(y1_imputed_unique)[inds_X0]
