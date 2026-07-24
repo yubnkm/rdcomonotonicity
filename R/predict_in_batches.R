@@ -1,3 +1,20 @@
+#' Evaluate Predictions in Batches
+#'
+#' Evaluates a prediction function in smaller batches to reduce memory usage.
+#'
+#' This is an internal computational helper used by
+#' [RDD_extrapolate_CV_band()].
+#' 
+#'
+#' @param x_fit A numeric matrix containing the points at which predictions are evaluated.
+#' @param x_center An optional numeric matrix containing the local-regression centers corresponding row-by-row to `x_fit`.
+#' @param batch_size A positive integer specifying the maximum number of rows evaluated in each batch.
+#' 
+#' @return A numeric vector containing one prediction for each row of `x_fit`.
+#'
+#' @keywords internal
+#' 
+#' 
 predict_in_batches <- function(FUN, x_fit, x_center = NULL, batch_size) {
     x_fit <- as.matrix(x_fit)
     num_predictions <- nrow(x_fit)

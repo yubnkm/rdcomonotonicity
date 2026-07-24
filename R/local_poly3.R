@@ -1,3 +1,47 @@
+#' Fit a Multivariate Local Polynomial Regression
+#'
+#' Fits a multivariate local polynomial regression using kernel-weighted least
+#' squares. The bandwidth may either be supplied directly or selected using
+#' cross-validation.
+#'
+#' This is an internal estimation function used by
+#' [RDD_extrapolate_CV_band()].
+#'
+#' @param Y A numeric vector of outcomes.
+#' @param X A numeric matrix or data frame of covariates. Rows correspond to observations.
+#' @param kernel A character string specifying the kernel. Available choices are `"gaussian"`, `"uniform"`, and `"triangular"`.
+#' @param bands A numeric vector of bandwidths. If one bandwidth is supplied, it
+#'   is used directly. If multiple bandwidths are supplied, the bandwidth is
+#'   selected by cross-validation.
+#' @param weights An optional numeric vector of observation weights. If `NULL`,
+#'   all observations receive weight one.
+#' @param num_folds A positive integer giving the number of cross-validation folds.
+#' @param order A nonnegative integer giving the total polynomial order. The default `1` fits a local linear regression.
+#'
+#' @return A named list with:
+#'
+#' - `predict_func`: a prediction function with arguments `x_fit` and `x`.
+#'   For each row, the local polynomial is centered at the corresponding row of
+#'   `x` and evaluated at the corresponding row of `x_fit`.
+#'
+#' - `optimal_band`: the supplied or cross-validation-selected bandwidth.
+#'
+#' @details
+#' The matrices passed to `predict_func` should have the same number of rows and
+#' the same number of columns as the original covariate matrix. To evaluate the
+#' fitted conditional mean at the local-regression centers themselves, use the
+#' same matrix for both arguments:
+#'
+#' ```
+#' fit$predict_func(x_new, x_new)
+#' ```
+#'
+#' Observations containing missing values in `Y`, `X`, or `weights` are removed.
+#' Cross-validation randomly shuffles the retained observations, so [set.seed()]
+#' should be used when reproducibility is required.
+#'
+#' @keywords internal
+
 local_poly3 <- function(
     Y,
     X,

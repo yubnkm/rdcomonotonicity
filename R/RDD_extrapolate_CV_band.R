@@ -1,3 +1,89 @@
+#' Extrapolate Potential Outcomes in a Sharp RDD Using Comonotonicity
+#'
+#' The function first estimates conditional mean outcomes separately for treated
+#' and untreated observations using multivariate local polynomial regression. It
+#' then identifies observations near the treatment frontier using nearest
+#' neighbors and estimates the mappings between treated and untreated conditional
+#' mean potential outcomes.
+#'
+#' @param Y A numeric vector of observed outcomes. Its length must equal the number of rows of `X`.
+
+#' @param X A numeric matrix or data frame of assignment variables or covariates.
+#'   Rows correspond to observations and columns correspond to covariates.
+#' 
+#' @param D A numeric or integer vector indicating treatment status. Values
+#'   should be `1` for treated observations and `0` for untreated observations.
+#' 
+#' @param kernel A character string specifying the kernel used in the local
+#'   polynomial regressions. Available choices are `"gaussian"`, `"uniform"`,
+#'   and `"triangular"`.
+#' 
+#' @param bands A numeric vector specifying bandwidths.
+#'
+#'   When `length(bands) == 2`, the first and second values are used as the
+#'   first-stage bandwidths for the untreated and treated regressions,
+#'   respectively.
+#'
+#'   When `length(bands) > 2`, the values are treated as candidate bandwidths
+#'   and bandwidth selection is performed by cross-validation.
+#'
+#'   A length-one vector is currently not accepted.
+#'
+#' @param weights An optional numeric vector of observation weights. The default
+#'   assigns weight one to every observation.
+#'
+#' @param num_folds A positive integer giving the number of folds used for
+#'   cross-validation. The default is `5`.
+#'
+#' @param order A nonnegative integer giving the total order of the local
+#'   polynomial. The default `1` corresponds to local linear regression.
+#'
+#' @param batch_size A positive integer giving the maximum number of prediction
+#'   points processed in one batch. Smaller values reduce peak memory usage but
+#'   may increase computation time.
+#'
+#' @return A named list containing:
+#'
+#' - `g1_imputed_func`: a function that imputes the conditional mean treated
+#'   potential outcome from the estimated untreated conditional mean.
+#'
+#' - `g0_imputed_func`: a function that imputes the conditional mean untreated
+#'   potential outcome from the estimated treated conditional mean.
+#'
+#' - `g1_func`: the estimated conditional mean outcome function fitted using the
+#'   treated sample.
+#'
+#' - `g0_func`: the estimated conditional mean outcome function fitted using the
+#'   untreated sample.
+#'
+#' - `q1`: the estimated mapping from untreated to treated conditional mean
+#'   potential outcomes.
+#'
+#' - `q0`: the estimated mapping from treated to untreated conditional mean
+#'   potential outcomes.
+#'
+#' - `plotting1` and `plotting0`: two-column matrices containing the generated
+#'   regressors and observed outcomes used in the second-stage local polynomial
+#'   regressions near the treatment frontier.
+#'
+#' - `y0`: estimated conditional mean untreated potential outcomes for the
+#'   complete-case observations.
+#'
+#' - `y1`: estimated conditional mean treated potential outcomes for the
+#'   complete-case observations.
+#'
+#' - `S`: an integer support indicator. A value of `1` indicates that the
+#'   observation's factual conditional mean lies within the estimated domain of
+#'   the relevant counterfactual mapping.
+#'
+#' - `band0` and `band1`: the first-stage bandwidths used for the untreated and
+#'   treated regressions.
+#'
+#' - `y0_min`, `y0_max`, `y1_min`, and `y1_max`: estimated endpoints of the
+#'   second-stage support regions.
+#'
+#' @export
+
 RDD_extrapolate_CV_band <- function(
     Y,
     X,
