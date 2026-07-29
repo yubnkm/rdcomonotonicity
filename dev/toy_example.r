@@ -72,3 +72,36 @@ plot <- plot_q_results(
 plot$q0_plot
 plot$q1_plot
 plot$comp_plot
+
+# Shift the treatment frontier upward by 0.05
+delta <- 0.05
+counterfactual_policy <- function(X) {
+    new_frontier <- frontier(X[, 1L]) + delta
+    as.numeric(X[, 2L]) < new_frontier
+}
+
+policy_est <- counterfactual_policy_effect(
+    result = result,
+    bootstrap_result = bootstrap_result,
+    policy = counterfactual_policy,
+    Y = dat$Y,
+    X = dat$X,
+    D = dat$D,
+    level = 0.9
+)
+
+# True counterfactual policy
+D_counterfactual <- counterfactual_policy(dat$X)
+
+true_factual_mean <- ifelse(dat$D==1, dat$mu1, dat$mu0)
+true_counterfactual_mean <- ifelse(D_counterfactual, dat$mu1, dat$mu0)
+
+S <- as.numeric(result$S == 1)
+true_policy_effect <- sum(
+    S * (true_counterfactual_mean - true_factual_mean)
+) / sum(S)
+
+cat(paste0("true: ", format(true_policy_effect, digits = 4), "\n",
+    "est: ", format(policy_est$estimate, digits = 4),": [", format(policy_est$conf_low, digits = 4), ",", format(policy_est$conf_high, digits = 4), "] \n"))
+
+

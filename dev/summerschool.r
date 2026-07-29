@@ -68,13 +68,46 @@ fit_read <- RDD_extrapolate_CV_band(
     batch_size = batch_size
 )
 
-plot_math <- plot_q_results(fit_math, points = 100L, show_points = FALSE)
-ggsave(paste0(output_dir,"/math_q0.png"), plot = plot_math$q0_plot)
-ggsave(paste0(output_dir,"/math_q1.png"), plot = plot_math$q1_plot)
-ggsave(paste0(output_dir,"/math_q_comp.png"), plot = lot_math$comp_plot)
 
-plot_read <- plot_q_results(fit_read, points = 100L, show_points = FALSE)
-ggsave(paste0(output_dir,"/read_q0.png"), plot = plot_read$q0_plot)
-ggsave(paste0(output_dir,"/read_q1.png"), plot = plot_read$q1_plot)
-ggsave(paste0(output_dir,"/read_q_comp.png"), plot = plot_read$comp_plot)
+bootstrap_math <- RDD_extrapolate_bootstrap(
+    fit_math,
+    Y = Y_math,
+    X = X,
+    D = D,
+    kernel = "gaussian",
+    num_folds = 5,
+    order = 1,
+    points = 100L,
+    bootstrap_iter = 10L,
+    parallel = TRUE
+)
+
+bootstrap_read <- RDD_extrapolate_bootstrap(
+    fit_read,
+    Y = Y_read,
+    X = X,
+    D = D,
+    kernel = "gaussian",
+    num_folds = 5,
+    order = 1,
+    points = 100L,
+    bootstrap_iter = 10L,
+    parallel = TRUE
+)
+
+plot_math <- plot_q_results(
+    fit_math, 
+    points = 100L, 
+    show_points = FALSE,
+    bootstrap_result = bootstrap_math,
+    level = 0.90
+)
+
+plot_read <- plot_q_results(
+    fit_read, 
+    points = 100L, 
+    show_points = FALSE,
+    bootstrap_result = bootstrap_read,
+    level = 0.90
+)
 
