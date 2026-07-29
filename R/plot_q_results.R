@@ -1,4 +1,10 @@
-plot_q_results <- function(result, points = 100L, show_points = FALSE) {
+plot_q_results <- function(
+    result, 
+    points = 100L, 
+    show_points = FALSE,
+    bootstrap_result = NULL,
+    level = 0.90
+    ) {
 
     # Extract second-stage estimation data
     q0_training_data <- as.data.frame(result$plotting1)
@@ -6,27 +12,80 @@ plot_q_results <- function(result, points = 100L, show_points = FALSE) {
     names(q0_training_data) <- c("EY1", "EY0")
     names(q1_training_data) <- c("EY0", "EY1")
 
-    q0_grid <- seq(
-        from = min(q0_training_data$EY1, na.rm = TRUE),
-        to = max(q0_training_data$EY1, na.rm = TRUE),
-        length.out = points
-    )
+    if(!is.null(bootstrap_result)){
+
+        q0_grid <- as.numeric(bootstrap_result$q0_grid)
+        q1_grid <- as.numeric(bootstrap_result$q1_grid)
+
+    } else {
+
+        q0_grid <- seq(
+            from = min(q0_training_data$EY1, na.rm = TRUE),
+            to = max(q0_training_data$EY1, na.rm = TRUE),
+            length.out = points
+        )
+        q1_grid <- seq(
+            from = min(q1_training_data$EY0, na.rm = TRUE),
+            to = max(q1_training_data$EY0, na.rm = TRUE),
+            length.out = points
+        )
+
+    }
+
     q0_fitted <- as.numeric(result$q0(q0_grid))
     q0_data <- data.frame(
         EY1 = q0_grid,
         EY0 = q0_fitted
     )
 
-    q1_grid <- seq(
-        from = min(q1_training_data$EY0, na.rm = TRUE),
-        to = max(q1_training_data$EY0, na.rm = TRUE),
-        length.out = points
-    )
     q1_fitted <- as.numeric(result$q1(q1_grid))
     q1_data <- data.frame(
         EY0 = q1_grid,
         EY1 = q1_fitted
     )
+
+    q0_band_data <- NULL
+    q1_band_data <- NULL
+
+    if (!is.null(bootstrap_result)) {
+
+        q0_draws <- as.matrix(bootstrap_result$q0_draws)
+        q1_draws <- as.matrix(bootstrap_result$q1_draws)
+
+        q0_dev <- abs(sweep(q0_draws, MARGIN = 1L, STATS = q0_fitted, FUN = "-"))
+        q1_dev <- abs(sweep(q1_draws, MARGIN = 1L, STATS = q1_fitted, FUN = "-"))
+
+        q0_rad <- apply(
+            q0_dev,
+            MARGIN = 1L,
+            FUN = stats::quantile,
+            probs = level,
+            names = FALSE,
+            na.rm = TRUE
+        )
+
+        q1_rad <- apply(
+            q1_dev,
+            MARGIN = 1L,
+            FUN = stats::quantile,
+            probs = level,
+            names = FALSE,
+            na.rm = TRUE
+        )
+
+        q0_band_data <- data.frame(
+            EY1 = q0_grid,
+            lower = q0_fitted - q0_rad,
+            upper = q0_fitted + q0_rad
+        )
+
+        q1_band_data <- data.frame(
+            EY0 = q1_grid,
+            lower = q1_fitted - q1_rad,
+            upper = q1_fitted + q1_rad
+        )
+
+    }
 
     # Plot q0
     q0_plot <- ggplot2::ggplot(
@@ -34,7 +93,12 @@ plot_q_results <- function(result, points = 100L, show_points = FALSE) {
         ggplot2::aes(x = EY1, y = EY0)
     ) +
         ggplot2::geom_line(color = "black") +
-        ggplot2::geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "gray40") +
+        ggplot2::geom_abline(
+            intercept = 0, 
+            slope = 1, 
+            linetype = "dashed", 
+            color = "gray40"
+        ) +
         ggplot2::geom_vline(
             xintercept = c(min(q0_training_data$EY1, na.rm = TRUE), max(q0_training_data$EY1, na.rm = TRUE)),
             linetype = "dotted",
@@ -42,6 +106,7 @@ plot_q_results <- function(result, points = 100L, show_points = FALSE) {
         ) +
         ggplot2::labs(x = "EY1", y = "EY0") +
         ggplot2::theme_classic()
+
 
     if (show_points) {
         q0_plot <- q0_plot +
@@ -53,6 +118,18 @@ plot_q_results <- function(result, points = 100L, show_points = FALSE) {
                 size = 1,
                 stroke = 0.5,
                 alpha = 0.4
+            )
+    }
+
+
+    if (!is.null(bootstrap_result)) {
+        q0_plot <- q0_plot +
+            ggplot2::geom_ribbon(
+                data = q0_band_data,
+                ggplot2::aes(x = EY1, ymin = lower, ymax = upper),
+                inherit.aes = FALSE,
+                fill = "#82808074",
+                alpha = 0.15
             )
     }
 
@@ -84,6 +161,17 @@ plot_q_results <- function(result, points = 100L, show_points = FALSE) {
             )
     }
 
+    if (!is.null(bootstrap_result)) {
+        q1_plot <- q1_plot +
+            ggplot2::geom_ribbon(
+                data = q1_band_data,
+                ggplot2::aes(x = EY0, ymin = lower, ymax = upper),
+                inherit.aes = FALSE,
+                fill = "#82808074",
+                alpha = 0.15
+            )
+    }
+
     # Compare q1 and q0
     q1_comp_data <- data.frame(
         EY0 = q1_data$EY0,
@@ -111,15 +199,14 @@ plot_q_results <- function(result, points = 100L, show_points = FALSE) {
         name = NULL,
         breaks = c("q1", "q0_inverse"),
         values = c(q1 = "blue", q0_inverse = "red"),
-        labels = expression(hat(q)[1](y), hat(q)^{-1}(y))
+        labels = expression(hat(q)[1](y), hat(q)[0]^{-1}(y))
     ) +
     ggplot2::coord_cartesian(xlim = c(comp_x_min, comp_x_max)) +
     ggplot2::labs(
         x = expression(E[Y(0) ~ "|" ~ X == x]),
         y = expression(E[Y(1) ~ "|" ~ X == x])
     ) +
-    ggplot2::theme_classic(base_size = 14) +
-    ggplot2::theme_classic()
+    ggplot2::theme_classic(base_size = 14) 
 
     return(
         list(
