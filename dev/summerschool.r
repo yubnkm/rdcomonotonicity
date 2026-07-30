@@ -187,8 +187,7 @@ read_counterfactual <- data.frame(
 )
 
 
-library(ggplot2)
-library(patchwork)
+\library(patchwork)
 
 # Scale the number affected onto the left y-axis
 math_scale <- 0.025 / 15000
@@ -309,5 +308,5 @@ p_read_counterfactual <- ggplot(
 
 # Combine the two panels
 figure_5_5 <- p_math_counterfactual + p_read_counterfactual
-
 figure_5_5
+ggsave(paste0(output_dir,"/Figure5_5.png"), plot = figure_5_5)
