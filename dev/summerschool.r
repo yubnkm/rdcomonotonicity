@@ -49,7 +49,6 @@ n <- length(Y_math)
 # bands <- seq(0.2, 0.5, length.out = 10)
 bands <- c(0.2, 0.2)
 
-
 fit_math <- RDD_extrapolate_CV_band(
     Y = Y_math,
     X = X,
@@ -94,15 +93,15 @@ bootstrap_read <- RDD_extrapolate_bootstrap(
     parallel = TRUE
 )
 
-saveRDS(
-  list(
-    fit_math = fit_math,
-    fit_read = fit_read,
-    bootstrap_math = bootstrap_math,
-    bootstrap_read = bootstrap_read
-  ),
-  file = file.path("dev", "summerschool_results.rds")
-)
+# saveRDS(
+#   list(
+#     fit_math = fit_math,
+#     fit_read = fit_read,
+#     bootstrap_math = bootstrap_math,
+#     bootstrap_read = bootstrap_read
+#   ),
+#   file = file.path("dev", "summerschool_results.rds")
+# )
 
 # Plotting q
 plot_math <- plot_q_results(
@@ -126,6 +125,21 @@ plot_read <- plot_q_results(
 ggsave(paste0(output_dir,"/read_q0.png"), plot = plot_read$q0_plot)
 ggsave(paste0(output_dir,"/read_q1.png"), plot = plot_read$q1_plot)
 ggsave(paste0(output_dir,"/read_q_comp.png"), plot = plot_read$comp_plot)
+
+# Figure 5.4
+threshold_function <- function(x) {
+    as.integer(!(x[,1L] > cutoff[1L] & x[,2L] > cutoff[2L]))
+}
+plot_idf_region(
+    X = X,
+    result = fit_math,
+    threshold_function = threshold_function 
+)
+plot_idf_region(
+    X = X,
+    result = fit_read,
+    threshold_function = threshold_function 
+)
 
 ## Counterfactual policy effects
 # math
@@ -306,7 +320,7 @@ p_read_counterfactual <- ggplot(
     )
 
 
-# Combine the two panels
 figure_5_5 <- p_math_counterfactual + p_read_counterfactual
 figure_5_5
 ggsave(paste0(output_dir,"/Figure5_5.png"), plot = figure_5_5)
+
