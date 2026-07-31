@@ -38,74 +38,6 @@ simul_dgp <- function(n=500, noise_sd = 0.02) {
 
 dat <- simul_dgp(n = 1000, noise_sd = 0.02)
 
-## 
-Y <- dat$Y
-X <- dat$X
-D <- dat$D
-weights <- rep(1, length(Y))
-kernel <- "gaussian"
-bands <- seq(0.2, 0.6, length.out = 5)
-num_folds <- 5
-order <- 1
-batch_size <- 1000L
-
-bootstrap_iter <- 10L
-level <- 0.9
-points <- 100L
-
-## batch function test
-# set.seed(123)
-# result_large_batch <- RDD_extrapolate_CV_band(
-#   Y = dat$Y,
-#   X = dat$X,
-#   D = dat$D,
-#   kernel = "gaussian",
-#   bands = seq(0.2,0.6, length.out = 5),
-#   num_folds = 5,
-#   order = 1,
-#   batch_size = 1000000000L
-# )
-# set.seed(123)
-
-# result_small_batch <- RDD_extrapolate_CV_band(
-#   Y = dat$Y,
-#   X = dat$X,
-#   D = dat$D,
-#   kernel = "gaussian",
-#   bands = seq(0.2,0.6, length.out = 5),
-#   num_folds = 5,
-#   order = 1,
-#     batch_size = 25L
-# )
-# all.equal(
-#     result_large_batch$y0,
-#     result_small_batch$y0,
-#     tolerance = 1e-12
-# )
-
-# all.equal(
-#     result_large_batch$y1,
-#     result_small_batch$y1,
-#     tolerance = 1e-12
-# )
-
-# all.equal(
-#     result_large_batch$S,
-#     result_small_batch$S
-# )
-
-# all.equal(
-#     result_large_batch$plotting0,
-#     result_small_batch$plotting0,
-#     tolerance = 1e-12
-# )
-
-# all.equal(
-#     result_large_batch$plotting1,
-#     result_small_batch$plotting1,
-#     tolerance = 1e-12
-# )
-
 result <- RDD_extrapolate_CV_band(
   Y = dat$Y,
   X = dat$X,
@@ -116,108 +48,60 @@ result <- RDD_extrapolate_CV_band(
   order = 1
 )
 
-plot <- plot_q_results(
-    result, 
-    points = 100L, 
-    show_points = TRUE,
-    bootstrap = TRUE,
-    bootstrap_iter = 10L,
-    level = 0.90,
+bootstrap_result <- RDD_extrapolate_bootstrap(
+    result,
     Y = dat$Y,
     X = dat$X,
     D = dat$D,
     kernel = "gaussian",
     num_folds = 5,
-    order = 1
-    )
-plot$q1_plot
+    order = 1,
+    points = 100L,
+    bootstrap_iter = 100L,
+    parallel = TRUE
+)
+
+plot <- plot_q_results(
+    result, 
+    points = 100L, 
+    show_points = FALSE,
+    bootstrap_result = bootstrap_result ,
+    level = 0.90
+)
+
 plot$q0_plot
+plot$q1_plot
 plot$comp_plot
 
+# Shift the treatment frontier upward by 0.05
+delta <- 0.05
+counterfactual_policy <- function(X) {
+    new_frontier <- frontier(X[, 1L]) + delta
+    as.numeric(X[, 2L]) < new_frontier
+}
 
-## Plotting figure 3.1 (b)
-# q0 <- result$q0
-# plotting1 <- as.data.frame(result$plotting1)
+policy_est <- counterfactual_policy_effect(
+    result = result,
+    bootstrap_result = bootstrap_result,
+    policy = counterfactual_policy,
+    Y = dat$Y,
+    X = dat$X,
+    D = dat$D,
+    level = 0.9
+)
 
-# names(plotting1) <- c("g1_tilde", "Y0")
+# True counterfactual policy
+D_counterfactual <- counterfactual_policy(dat$X)
 
-# grid <- seq(0, 1, length.out = 1000)
+true_factual_mean <- ifelse(dat$D==1, dat$mu1, dat$mu0)
+true_counterfactual_mean <- ifelse(D_counterfactual, dat$mu1, dat$mu0)
 
-# true_curve <- data.frame(
-#     y1 = g1_true(grid, frontier(grid)),
-#     y0 = g0_true(grid, frontier(grid))
-# )
-# true_curve <- true_curve[order(true_curve$y1), ]
+S <- as.numeric(result$S == 1)
+true_policy_effect <- sum(
+    S * (true_counterfactual_mean - true_factual_mean)
+) / sum(S)
 
-# gsgrd <- seq(from = result$y0_min, to = result$y0_max, length.out = 100)
+cat(paste0("true: ", format(true_policy_effect, digits = 4), "\n",
+    "est: ", format(policy_est$estimate, digits = 4),": [", format(policy_est$conf_low, digits = 4), ",", format(policy_est$conf_high, digits = 4), "] \n"))
 
-# fit <- vapply(
-#   gsgrd,
-#   function(y) {
-#     as.numeric(q0(matrix(y, nrow = 1, ncol = 1)))[1]
-#   },
-#   numeric(1)
-# )
 
-# estimated_curve <- data.frame(y1 = gsgrd, y0 = fit)
-
-# fig9 <- ggplot() +
-#     # True q0(y)
-#     geom_line(
-#         data = true_curve,
-#         aes(x = y1, y = y0,linetype = "true"),
-#         color = "blue",
-#         linewidth = 0.9
-#     ) + 
-#     # Estimated q0(y)
-#     geom_line(
-#         data = estimated_curve,
-#         aes(x = y1, y= y0, linetype = "estimated"),
-#         color = "black",
-#         linewidth = 0.9
-
-#     ) +
-#     # Domain of q0 (y0_min and y0_max)
-#     geom_vline(
-#         xintercept = c(result$y0_min, result$y0_max),
-#         linetype = "dashed",
-#         color = "black",
-#         linewidth = 0.5
-#     ) +
-#     # observation scatter plots
-#     geom_point(
-#         data = plotting1,
-#         aes(x = g1_tilde, y = Y0),
-#         shape = 4,
-#         size = 1.8,
-#         stroke = 1,
-#         color = "#828181"
-#     ) +
-#     scale_linetype_manual(
-#         name = NULL,
-#         breaks = c("true", "estimated"),
-#         values = c(true = "dashed", estimated = "solid"),
-#         labels = expression(q[0](y), hat(q)[0](y))
-#     ) +
-#     labs(
-#         x = expression(E[Y(1) ~ "|" ~ X == x]),
-#         y = expression(E[Y(0) ~ "|" ~ X == x])
-#     ) +
-#     theme_classic(base_size = 14) +
-
-#     theme(
-#         axis.line = element_line(
-#         color = "black",
-#         linewidth = 0.5
-#     ),
-#     axis.ticks = element_line(
-#         color = "black",
-#         linewidth = 0.5
-#     ),
-#         legend.position = "top",
-#         legend.justification = "left",
-#         legend.box.just = "left",
-#         legend.background = element_blank(),
-#         legend.key = element_blank()
-#   )
-# fig9
