@@ -1,3 +1,51 @@
+#' Plot Estimated Potential-Outcome Mappings
+#'
+#' Plots the estimated mappings between treated and untreated conditional mean
+#' potential outcomes. The function produces separate plots of `q0` and `q1`,
+#' together with a comparison of `q1` and the inverse relationship implied by
+#' `q0`.
+#'
+#' @param result A fitted object returned by
+#'   [RDD_extrapolate_CV_band()]. It must contain `q0`, `q1`, `plotting0`, and
+#'   `plotting1`.
+#'
+#' @param points A positive integer giving the number of evaluation points used
+#'   to construct each curve when `bootstrap_result` is `NULL`. The default is
+#'   `100`.
+#'
+#' @param show_points A logical value indicating whether the second-stage
+#'   observations used to estimate the mappings should be shown. The default is
+#'   `FALSE`.
+#'
+#' @param bootstrap_result An optional object returned by
+#'   [RDD_extrapolate_bootstrap()]. When supplied, the function uses its
+#'   evaluation grids and constructs pointwise multiplier-bootstrap confidence
+#'   bands.
+#'
+#' @param level A numeric scalar between zero and one specifying the confidence
+#'   level used for the bootstrap bands. The default is `0.90`.
+#'
+#' @details
+#' The `q0` plot treats the estimated treated conditional mean as the horizontal
+#' axis and the estimated untreated conditional mean as the vertical axis. The
+#' `q1` plot reverses those roles.
+#'
+#' The comparison plot overlays `q1` with a parametric representation of
+#' `q0^{-1}`. Under comonotonicity, the population versions of these two
+#' relationships should coincide over their common support.
+#'
+#' When bootstrap results are supplied, the bands are calculated separately at
+#' each evaluation point using quantiles of the absolute bootstrap deviations.
+#' They are therefore pointwise bands.
+#'
+#' @return A named list containing three `ggplot` objects:
+#'
+#' - `q0_plot`: estimated `q0` mapping.
+#' - `q1_plot`: estimated `q1` mapping.
+#' - `comp_plot`: comparison of `q1` and the relationship implied by
+#'   `q0^{-1}`.
+#'
+#' @export
 plot_q_results <- function(
     result, 
     points = 100L, 

@@ -73,6 +73,13 @@ plot$q0_plot
 plot$q1_plot
 plot$comp_plot
 
+# Plotting identified regions
+plot_idf_region(
+    X = dat$X,
+    result = result,
+    threshold_function = function(x) 0.4 * x[, 1L] + x[, 2L] < 0.7
+)
+
 # Shift the treatment frontier upward by 0.05
 delta <- 0.05
 counterfactual_policy <- function(X) {

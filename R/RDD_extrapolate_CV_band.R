@@ -6,8 +6,8 @@
 #' neighbors and estimates the mappings between treated and untreated conditional
 #' mean potential outcomes.
 #'
-#' @param Y A numeric vector of observed outcomes. Its length must equal the number of rows of `X`.
-
+#' @param Y A numeric vector of observed outcomes. 
+#' 
 #' @param X A numeric matrix or data frame of assignment variables or covariates.
 #'   Rows correspond to observations and columns correspond to covariates.
 #' 
@@ -40,7 +40,7 @@
 #'
 #' @param batch_size A positive integer giving the maximum number of prediction
 #'   points processed in one batch. Smaller values reduce peak memory usage but
-#'   may increase computation time.
+#'   may increase computation time. The default is `1000`.
 #'
 #' @return A named list containing:
 #'

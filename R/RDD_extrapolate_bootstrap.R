@@ -1,3 +1,90 @@
+#' Multiplier Bootstrap for RDD Extrapolation Estimates
+#'
+#' Computes multiplier-bootstrap draws for the estimated potential-outcome
+#' mappings and imputed conditional mean potential outcomes produced by
+#' [RDD_extrapolate_CV_band()].
+#'
+#' Independent standard exponential multipliers are applied to the observation
+#' weights. The model is then re-estimated for each bootstrap draw using the
+#' bandwidth pair selected in the original fit.
+#'
+#' @param result A fitted object returned by
+#'   [RDD_extrapolate_CV_band()]. It must contain `plotting0`, `plotting1`,
+#'   `band0`, and `band1`.
+#'
+#' @param Y A numeric vector of observed outcomes. 
+#' 
+#' @param X A numeric matrix or data frame of assignment variables or covariates.
+#'   Rows correspond to observations and columns correspond to covariates.
+#' 
+#' @param D A numeric or integer vector indicating treatment status. Values
+#'   should be `1` for treated observations and `0` for untreated observations.
+#'
+#' @param kernel A character string specifying the kernel used in the local
+#'   polynomial regressions. Available choices are `"gaussian"`, `"uniform"`,
+#'   and `"triangular"`.
+#'
+#' @param weights An optional numeric vector of observation weights. The default
+#'   assigns weight one to every observation.
+#'
+#' @param num_folds A positive integer giving the number of folds used for
+#'   cross-validation. The default is `5`.
+#'
+#' @param order A nonnegative integer giving the total order of the local
+#'   polynomial. The default `1` corresponds to local linear regression.
+#'
+#' @param batch_size A positive integer giving the maximum number of prediction
+#'   points processed in one batch. Smaller values reduce peak memory usage but
+#'   may increase computation time. The default is `1000`.
+#'
+#' @param points A positive integer giving the number of points in the
+#'   evaluation grids for `q0` and `q1`. The default is `100`.
+#'
+#' @param bootstrap_iter A positive integer giving the number of multiplier
+#'   bootstrap draws. The default is `100`.
+#'
+#' @param parallel A logical value indicating whether the bootstrap draws should
+#'   be evaluated using a parallel socket cluster. The default is `FALSE`.
+#'
+#' @param n_cores An optional positive integer giving the number of parallel
+#'   workers. When `parallel = TRUE` and `n_cores = NULL`, the function uses one
+#'   fewer than the number of detected physical cores, subject to a minimum of
+#'   one and a maximum equal to `bootstrap_iter`.
+#'
+#' @details
+#' For bootstrap draw \eqn{b}, the effective observation weight is
+#'
+#' \deqn{w_i e_{ib},}
+#'
+#' where \eqn{w_i} is the original observation weight and \eqn{e_{ib}} is an
+#' independent standard exponential multiplier.
+#'
+#' The function stores draws of the estimated `q0` and `q1` curves and draws of
+#' the imputed conditional mean potential outcomes. It does not itself construct
+#' confidence intervals; the stored draws are consumed by
+#' [plot_q_results()] and [counterfactual_policy_effect()].
+#'
+#' Set the random seed before calling this function when reproducible bootstrap
+#' multipliers are required.
+#'
+#' @return A named list containing:
+#'
+#' - `q0_grid` and `q1_grid`: evaluation grids.
+#' - `q0_draws` and `q1_draws`: matrices of bootstrap curve evaluations, with
+#'   one bootstrap draw per column.
+#' - `y0_draws` and `y1_draws`: matrices of bootstrap conditional mean
+#'   potential-outcome estimates, with one draw per column.
+#' - `multipliers`: matrix of standard exponential bootstrap multipliers.
+#' - `complete_cases`: complete-case indicator for the original inputs.
+#' - `band0` and `band1`: bandwidths inherited from the original fit.
+#' - `bootstrap_iter`: number of bootstrap draws.
+#' - `points`: number of curve-evaluation points.
+#'
+#' @seealso
+#' [RDD_extrapolate_CV_band()], [plot_q_results()],
+#' [counterfactual_policy_effect()]
+#'
+#' @export
 RDD_extrapolate_bootstrap <- function(
     result,
     Y,
