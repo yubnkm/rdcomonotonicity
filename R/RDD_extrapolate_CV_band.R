@@ -298,26 +298,39 @@ RDD_extrapolate_CV_band <- function(
     # y1[D == 1] <- as.numeric(g1_raw(X1, X1))
 
     # Speed things up if there are repeated X values
-    X_map <- unique_rows_with_map(X)
-    X_unique <- X_map$unique
-    inds_X <- X_map$inds
-
-    # y0_unique <- g0_func(X_unique)
-    # y1_unique <- g1_func(X_unique)
-    # quick fix to avoid memory problems, do things in batches:
-    y0_unique <- predict_in_batches(
-        FUN = g0_func,
-        x_fit = X_unique,
-        batch_size = batch_size
-    )
-    y1_unique <- predict_in_batches(
-        FUN = g1_func,
-        x_fit = X_unique,
-        batch_size = batch_size
-    )
-    y0 <- as.numeric(y0_unique)[inds_X]
-    y1 <- as.numeric(y1_unique)[inds_X]
     
+    # Factual fitted values should only be evaluated within the
+    # treatment region used to estimate each regression.
+    y0 <- rep(NA_real_, length(Y))
+    y1 <- rep(NA_real_, length(Y))
+
+    # Unique untreated covariate values
+    X0_map <- unique_rows_with_map(X0)
+    X0_unique <- X0_map$unique
+    inds_X0 <- X0_map$inds
+
+    # Unique treated covariate values
+    X1_map <- unique_rows_with_map(X1)
+    X1_unique <- X1_map$unique
+    inds_X1 <- X1_map$inds
+
+    # Factual untreated potential outcomes
+    y0[D == 0] <- as.numeric(
+        predict_in_batches(
+            FUN = g0_func,
+            x_fit = X0_unique,
+            batch_size = batch_size
+        )
+    )[inds_X0]
+
+    # Factual treated potential outcomes
+    y1[D == 1] <- as.numeric(
+        predict_in_batches(
+            FUN = g1_func,
+            x_fit = X1_unique,
+            batch_size = batch_size
+        )
+    )[inds_X1]
 
     # Indicator for observations whose counterfactual mean is supported (S)
     # S <- D * as.numeric( (y0_min < y1) & (y1 < y0_max) ) +
