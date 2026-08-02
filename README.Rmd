@@ -232,7 +232,7 @@ identified. Crosses indicate `S = 1`, while circles indicate `S = 0`.
 The `threshold_function` is used only to label the treated and untreated regions
 in the plot. It must return one treatment indicator for each row of `X`.
 
-```{r plot-identified-region}
+```{r plot-identified-region, out.width="60%", fig.width=6, fig.height=4, fig.align="center"}
 plot_idf_region(
   X = dat$X,
   result = result,
@@ -249,7 +249,7 @@ Consider a counterfactual policy that shifts the treatment frontier upward by
 0.05:
 
 $$
-D^{\mathrm{counterfactual}} = \mathbf{1}\left\{X_2 < 0.7 - 0.4X_1 + 0.05\right\}.
+D^{\mathrm{counterfactual}} = \mathbf{1}\{X_2 < 0.7 - 0.4X_1 + 0.05\}.
 $$
 
 This policy expands treatment to observations immediately above the original

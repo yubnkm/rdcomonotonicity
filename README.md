@@ -226,14 +226,14 @@ plot_idf_region(
 )
 ```
 
-<img src="man/figures/README-plot-identified-region-1.png" width="100%" />
+<img src="man/figures/README-plot-identified-region-1.png" width="60%" style="display: block; margin: auto;" />
 
 ### Counterfactual policy effect
 
 Consider a counterfactual policy that shifts the treatment frontier
 upward by 0.05:
 
-$$D^{\mathrm{counterfactual}} = \mathbf{1}\left\{X_2 < 0.7 - 0.4X_1 + 0.05\right\}.$$
+$$D^{\mathrm{counterfactual}} = \mathbf{1}\{X_2 < 0.7 - 0.4X_1 + 0.05\}.$$
 
 This policy expands treatment to observations immediately above the
 original frontier.
