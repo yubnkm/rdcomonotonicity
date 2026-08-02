@@ -11,45 +11,382 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   out.width = "100%"
 )
+
+devtools::load_all(".")
 ```
 
 # rdcomonotonicity
 
-<!-- badges: start -->
-<!-- badges: end -->
+`rdcomonotonicity` implements nonparametric extrapolation in sharp regression
+discontinuity designs using the comonotonicity approach of Deaner and Kwon
+(2025). Under comonotonicity of the conditional mean potential outcomes, this 
+package extrapolates average treatment effects at the frontier to observations 
+away from the frontier whenever the relevant conditional mean lies within the 
+estimated frontier support.
 
-The goal of rdcomonotonicity is to ...
+The package currently provide tools to:
+
+- estimate treated and untreated conditional mean outcome functions using
+  multivariate local polynomial regression;
+- estimate the mappings \(q_0\) and \(q_1\) betweend conditional mean potential
+  outcomes;
+- determine where conditional average treatment effects are identified;
+- construct multiplier-bootstrap confidence bands; and
+- estimate the effects of counterfactual treatment policies.
+
+
 
 ## Installation
 
-You can install the development version of rdcomonotonicity from [GitHub](https://github.com/) with:
+Install the development version from GitHub:
 
-``` r
+```r
 # install.packages("pak")
 pak::pak("yubnkm/rdcomonotonicity")
 ```
 
-## Example
+Then load the package:
 
-This is a basic example which shows you how to solve a common problem:
-
-```{r example}
+```{r load-package, eval = FALSE}
 library(rdcomonotonicity)
-## basic example code
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
 
-```{r cars}
-summary(cars)
+## Toy Example
+
+This example generates a 2-dimensional sharp RDD in which comonotonicity holds 
+by construction. It then estimates the potential outcome mappings, obtains 
+multiplier bootstrap confidence bands, display the identified region, and 
+estimates the effect of a counterfactual change in the treatment frontier.
+
+### Data generating process
+
+Let \(X=(X_1,X_2)\) be uniformly distributed on the unit square. Treatment is
+assigned when
+
+\[
+X_2 < 0.7 - 0.4X_1.
+\]
+
+The conditional mean treated potential outcome is
+
+\[
+g_1(x_1,x_2)=\sin(x_1)+0.3\sin(x_2),
+\]
+
+and the conditional mean untreated potential outcome is
+
+\[
+g_0(x_1,x_2)=0.8-0.8\cos\{g_1(x_1,x_2)\}.
+\]
+
+Therefore, \(g_0(x)=q_0(g_1(x))\), where
+\(q_0(y)=0.8-0.8\cos(y)\). The two conditional mean potential outcomes are
+comonotonic.
+
+
+```{r simulate-data}
+set.seed(1)
+
+g1_true <- function(x1, x2) sin(x1) + 0.3 * sin(x2)
+g0_true <- function(x1, x2) 0.8 - 0.8 * cos(g1_true(x1, x2))
+
+frontier <- function(x1) 0.7 - 0.4 * x1
+d_func <- function(x1, x2) as.integer(x2 < frontier(x1))
+
+
+q0_true <- function(y1) 0.8 - 0.8 * cos(y1)
+q1_true <- function(y0) acos(pmax(-1, pmin(1, 1 - y0 / 0.8)))
+
+simulate_dgp <- function(n = 500, noise_sd = 0.02) {
+  X <- matrix(runif(2 * n), nrow = n, ncol = 2)
+  colnames(X) <- c("X1", "X2")
+
+  mu1 <- g1_true(X[, 1], X[, 2])
+  mu0 <- g0_true(X[, 1], X[, 2])
+  D <- d_func(X[, 1], X[, 2])
+
+  factual_mean <- ifelse(D == 1, mu1, mu0)
+  Y <- factual_mean + rnorm(n, mean = 0, sd = noise_sd)
+
+  list(
+    Y = Y,
+    X = X,
+    D = D,
+    mu0 = mu0,
+    mu1 = mu1,
+    factual_mean = factual_mean
+  )
+}
+
+dat <- simulate_dgp(n = 1000, noise_sd = 0.02)
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this.
+### Estimate the extrapolation model
 
-You can also embed plots, for example:
+`RDD_extrapolate_CV_band()` estimates the factual conditional mean outcome
+separately in the treated and untreated regions. It then uses observations near
+the treatment frontier to estimate:
 
-```{r pressure, echo = FALSE}
-plot(pressure)
+- \(q_0\), which maps a treated conditional mean into the corresponding
+  untreated conditional mean; and
+- \(q_1\), which maps an untreated conditional mean into the corresponding
+  treated conditional mean.
+
+When more than two candidate bandwidths are supplied, the function selects
+first-stage bandwidths by cross-validation.
+
+```{r estimate-model, cache = TRUE}
+result <- RDD_extrapolate_CV_band(
+  Y = dat$Y,
+  X = dat$X,
+  D = dat$D,
+  kernel = "gaussian",
+  bands = seq(0.2, 0.6, length.out = 5),
+  num_folds = 5,
+  order = 1
+)
+
+fit_summary <- data.frame(
+  quantity = c(
+    "Untreated first-stage bandwidth",
+    "Treated first-stage bandwidth",
+    "Share with identified CATE"
+  ),
+  value = c(
+    result$band0,
+    result$band1,
+    mean(result$S)
+  )
+)
+
+knitr::kable(fit_summary, digits = 3)
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
+The returned support indicator `result$S` equals one when the observation's
+factual conditional mean lies within the estimated domain of the relevant
+counterfactual mapping. These are the observations for which the package
+extrapolates both conditional mean potential outcomes.
+
+### Multiplier bootstrap
+
+`RDD_extrapolate_bootstrap()` applies independent standard exponential
+multipliers to the observation weights and re-estimates the model using the
+bandwidths selected in the original fit.
+
+The following example uses 10 bootstrap draws and two parallel workers.
+Increasing `bootstrap_iter` generally produces more stable confidence bands but
+increases computation time.
+
+```{r bootstrap, cache = TRUE}
+set.seed(1)
+
+bootstrap_result <- RDD_extrapolate_bootstrap(
+  result = result,
+  Y = dat$Y,
+  X = dat$X,
+  D = dat$D,
+  kernel = "gaussian",
+  num_folds = 5,
+  order = 1,
+  points = 100L,
+  bootstrap_iter = 10L,
+  parallel = TRUE,
+  n_cores = 2L
+)
+```
+
+### Estimated potential-outcome mappings
+
+`plot_q_results()` returns three `ggplot` objects:
+
+1. the estimated \(q_0\) mapping;
+2. the estimated \(q_1\) mapping; and
+3. a comparison of \(\widehat q_1\) with the inverse relationship implied by
+   \(\widehat q_0\).
+
+Under comonotonicity, the population versions of \(q_1\) and \(q_0^{-1}\) should
+coincide over their common support. The shaded regions below are 90 percent
+pointwise multiplier-bootstrap confidence bands.
+
+```{r construct-q-plots}
+q_plots <- plot_q_results(
+  result = result,
+  points = 100L,
+  show_points = FALSE,
+  bootstrap_result = bootstrap_result,
+  level = 0.90
+)
+```
+
+#### Mapping from treated to untreated conditional means
+
+```{r plot-q0}
+q_plots$q0_plot
+```
+
+#### Mapping from untreated to treated conditional means
+
+```{r plot-q1}
+q_plots$q1_plot
+```
+
+#### Comparison of \(\widehat q_1\) and \(\widehat q_0^{-1}\)
+
+```{r plot-q-comparison}
+q_plots$comp_plot
+```
+
+### Region with identified conditional average treatment effects
+
+For two-dimensional assignment variables, `plot_idf_region()` displays the
+observations for which the estimated conditional average treatment effect is
+identified. Crosses indicate `S = 1`, while circles indicate `S = 0`.
+
+The `threshold_function` is used only to label the treated and untreated regions
+in the plot. It must return one treatment indicator for each row of `X`.
+
+```{r plot-identified-region}
+plot_idf_region(
+  X = dat$X,
+  result = result,
+  threshold_function = function(x) {
+    0.4 * x[, 1L] + x[, 2L] < 0.7
+  }
+)
+```
+
+
+### Counterfactual policy effect
+
+Consider a counterfactual policy that shifts the treatment frontier upward by
+0.05:
+
+\[
+D^{\mathrm{cf}}
+=
+1\left\{
+X_2 < 0.7 - 0.4X_1 + 0.05
+\right\}.
+\]
+
+This policy expands treatment to observations immediately above the original
+frontier.
+
+```{r define-policy}
+delta <- 0.05
+
+counterfactual_policy <- function(X) {
+  new_frontier <- frontier(X[, 1L]) + delta
+  as.numeric(X[, 2L] < new_frontier)
+}
+```
+
+`counterfactual_policy_effect()` estimates the mean outcome change generated by
+replacing the observed treatment rule with the counterfactual policy. The
+reported effect is averaged over all observations with `S = 1`, not only over
+the observations whose treatment status changes.
+
+```{r estimate-policy-effect}
+policy_est <- counterfactual_policy_effect(
+  result = result,
+  bootstrap_result = bootstrap_result,
+  policy = counterfactual_policy,
+  Y = dat$Y,
+  X = dat$X,
+  D = dat$D,
+  level = 0.90
+)
+```
+
+Because this is a simulation, the true policy effect can also be calculated
+using the known conditional mean potential outcomes. For comparison with the
+estimator, the true effect is averaged over the same observations with `S = 1`.
+
+```{r compare-policy-effect}
+D_counterfactual <- counterfactual_policy(dat$X)
+
+true_factual_mean <- ifelse(
+  dat$D == 1,
+  dat$mu1,
+  dat$mu0
+)
+
+true_counterfactual_mean <- ifelse(
+  D_counterfactual == 1,
+  dat$mu1,
+  dat$mu0
+)
+
+S <- as.numeric(result$S == 1)
+
+true_policy_effect <- sum(
+  S * (true_counterfactual_mean - true_factual_mean)
+) / sum(S)
+
+policy_summary <- data.frame(
+  quantity = c(
+    "True policy effect",
+    "Estimated policy effect",
+    "90% confidence interval lower endpoint",
+    "90% confidence interval upper endpoint",
+    "Number with identified CATE",
+    "Expected number affected",
+    "Affected share among identified observations"
+  ),
+  value = c(
+    true_policy_effect,
+    policy_est$estimate,
+    policy_est$conf_low,
+    policy_est$conf_high,
+    policy_est$identified_n,
+    policy_est$num_affected,
+    policy_est$affected_share
+  )
+)
+
+knitr::kable(policy_summary, digits = 4)
+```
+
+A deterministic policy should return only zero and one. A probabilistic policy
+may instead return treatment probabilities in the interval \([0,1]\).
+
+## Main functions
+
+| Function | Purpose |
+|:--|:--|
+| `RDD_extrapolate_CV_band()` | Estimate conditional mean potential outcomes, the \(q_0\) and \(q_1\) mappings, and the support indicator \(S\). |
+| `RDD_extrapolate_bootstrap()` | Generate multiplier-bootstrap draws for the mappings and imputed potential outcomes. |
+| `plot_q_results()` | Plot \(\widehat q_0\), \(\widehat q_1\), and the comparison between \(\widehat q_1\) and \(\widehat q_0^{-1}\). |
+| `plot_idf_region()` | Plot the identified and unidentified regions when `X` has exactly two columns. |
+| `counterfactual_policy_effect()` | Estimate the effect of a user-specified deterministic or probabilistic counterfactual treatment policy. |
+
+See the function documentation for complete argument definitions and returned
+objects:
+
+```r
+?RDD_extrapolate_CV_band
+?RDD_extrapolate_bootstrap
+?plot_q_results
+?plot_idf_region
+?counterfactual_policy_effect
+```
+
+## Reference
+
+The methodology implemented in this package is developed in:
+
+Ben Deaner and Soonwoo Kwon. **“Extrapolation in Regression Discontinuity
+Design Using Comonotonicity.”** 2025.
+[arXiv:2507.00289](https://arxiv.org/abs/2507.00289).
+
+```bibtex
+@article{deanerkwon2025,
+  title        = {Extrapolation in Regression Discontinuity Design Using Comonotonicity},
+  author       = {Deaner, Ben and Kwon, Soonwoo},
+  year         = {2025},
+  eprint       = {2507.00289},
+  archivePrefix = {arXiv},
+  primaryClass = {econ.EM}
+}
+```
