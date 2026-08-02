@@ -122,28 +122,7 @@ result <- RDD_extrapolate_CV_band(
   num_folds = 5,
   order = 1
 )
-
-fit_summary <- data.frame(
-  quantity = c(
-    "Untreated first-stage bandwidth",
-    "Treated first-stage bandwidth",
-    "Share with identified CATE"
-  ),
-  value = c(
-    result$band0,
-    result$band1,
-    mean(result$S)
-  )
-)
-
-knitr::kable(fit_summary, digits = 3)
 ```
-
-| quantity                        | value |
-|:--------------------------------|------:|
-| Untreated first-stage bandwidth | 0.200 |
-| Treated first-stage bandwidth   | 0.200 |
-| Share with identified CATE      | 0.849 |
 
 The returned support indicator `result$S` equals one when the
 observation’s factual conditional mean lies within the estimated domain
@@ -156,7 +135,7 @@ which the package extrapolates both conditional mean potential outcomes.
 multipliers to the observation weights and re-estimates the model using
 the bandwidths selected in the original fit.
 
-The following example uses 10 bootstrap draws and two parallel workers.
+The following example uses 30 bootstrap draws and two parallel workers.
 Increasing `bootstrap_iter` generally produces more stable confidence
 bands but increases computation time.
 
@@ -172,11 +151,11 @@ bootstrap_result <- RDD_extrapolate_bootstrap(
   num_folds = 5,
   order = 1,
   points = 100L,
-  bootstrap_iter = 10L,
+  bootstrap_iter = 30L,
   parallel = TRUE,
   n_cores = 2L
 )
-#> Completed 10 bootstrap draws using 2 cores
+#> Completed 30 bootstrap draws using 2 cores
 ```
 
 ### Estimated potential-outcome mappings
@@ -208,7 +187,7 @@ q_plots <- plot_q_results(
 q_plots$q0_plot
 ```
 
-<img src="man/figures/README-plot-q0-1.png" width="100%" />
+<img src="man/figures/README-plot-q0-1.png" width="60%" style="display: block; margin: auto;" />
 
 #### Mapping from untreated to treated conditional means
 
@@ -216,7 +195,7 @@ q_plots$q0_plot
 q_plots$q1_plot
 ```
 
-<img src="man/figures/README-plot-q1-1.png" width="100%" />
+<img src="man/figures/README-plot-q1-1.png" width="60%" style="display: block; margin: auto;" />
 
 #### Comparison of $\widehat q_1$ and $\widehat q_0^{-1}$
 
@@ -224,7 +203,7 @@ q_plots$q1_plot
 q_plots$comp_plot
 ```
 
-<img src="man/figures/README-plot-q-comparison-1.png" width="100%" />
+<img src="man/figures/README-plot-q-comparison-1.png" width="60%" style="display: block; margin: auto;" />
 
 ### Region with identified conditional average treatment effects
 
@@ -254,11 +233,7 @@ plot_idf_region(
 Consider a counterfactual policy that shifts the treatment frontier
 upward by 0.05:
 
-$$D^{counterfactual}
-=
-1\{
-X_2 < 0.7 - 0.4X_1 + 0.05
-\}.$$
+$$D^{\mathrm{counterfactual}} = \mathbf{1}\left\{X_2 < 0.7 - 0.4X_1 + 0.05\right\}.$$
 
 This policy expands treatment to observations immediately above the
 original frontier.
@@ -344,8 +319,8 @@ knitr::kable(policy_summary, digits = 4)
 |:---------------------------------------------|---------:|
 | True policy effect                           |   0.0251 |
 | Estimated policy effect                      |   0.0250 |
-| 90% confidence interval lower                |   0.0190 |
-| 90% confidence interval upper                |   0.0310 |
+| 90% confidence interval lower                |   0.0201 |
+| 90% confidence interval upper                |   0.0299 |
 | Number with identified CATE                  | 849.0000 |
 | Expected number affected                     |  48.0000 |
 | Affected share among identified observations |   0.0565 |
