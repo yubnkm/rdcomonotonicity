@@ -254,11 +254,11 @@ plot_idf_region(
 Consider a counterfactual policy that shifts the treatment frontier
 upward by 0.05:
 
-$$D^{\mathrm{cf}}
+$$D^{counterfactual}
 =
-1\left\{
+1\{
 X_2 < 0.7 - 0.4X_1 + 0.05
-\right\}.$$
+\}.$$
 
 This policy expands treatment to observations immediately above the
 original frontier.
@@ -320,8 +320,8 @@ policy_summary <- data.frame(
   quantity = c(
     "True policy effect",
     "Estimated policy effect",
-    "90% confidence interval lower endpoint",
-    "90% confidence interval upper endpoint",
+    "90% confidence interval lower",
+    "90% confidence interval upper",
     "Number with identified CATE",
     "Expected number affected",
     "Affected share among identified observations"
@@ -344,15 +344,11 @@ knitr::kable(policy_summary, digits = 4)
 |:---------------------------------------------|---------:|
 | True policy effect                           |   0.0251 |
 | Estimated policy effect                      |   0.0250 |
-| 90% confidence interval lower endpoint       |   0.0190 |
-| 90% confidence interval upper endpoint       |   0.0310 |
+| 90% confidence interval lower                |   0.0190 |
+| 90% confidence interval upper                |   0.0310 |
 | Number with identified CATE                  | 849.0000 |
 | Expected number affected                     |  48.0000 |
 | Affected share among identified observations |   0.0565 |
-
-A deterministic policy should return only zero and one. A probabilistic
-policy may instead return treatment probabilities in the interval
-$[0,1]$.
 
 ## Main functions
 
